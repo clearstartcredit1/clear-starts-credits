@@ -1,0 +1,81 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: crm
+      POSTGRES_DB: crm
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm -d crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  api:
+    image: node:20
+    working_dir: /app/apps/api
+    volumes:
+      - .:/app
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: "postgresql://crm:crm@db:5432/crm?schema=public"
+    ports:
+      - "3001:3001"
+    depends_on:
+      db:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    command: >
+      sh -lc "
+      cd /app &&
+      npm install &&
+      cd /app/packages/db &&
+      npm install &&
+      npx prisma generate &&
+      npx prisma migrate deploy &&
+      cd /app/apps/api &&
+      npm install &&
+      npm run start:dev
+      "
+
+  web-admin:
+    image: node:20
+    working_dir: /app/apps/web-admin
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    command: >
+      sh -lc "
+      cd /app/apps/web-admin &&
+      npm install &&
+      npm run dev
+      "
+
+  web-client:
+    image: node:20
+    working_dir: /app/apps/web-client
+    volumes:
+      - .:/app
+    ports:
+      - "3002:3002"
+    depends_on:
+      - api
+    command: >
+      sh -lc "
+      cd /app/apps/web-client &&
+      npm install &&
+      npm run dev
+      "

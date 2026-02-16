@@ -1,0 +1,5 @@
+{
+  "name": "clear-start-crm",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"]
+}
